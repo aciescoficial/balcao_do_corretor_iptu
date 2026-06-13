@@ -60,10 +60,10 @@ const IPTUStandaloneLayout: React.FC<IPTUStandaloneLayoutProps> = ({ children })
             </div>
             <div className="min-w-0">
               <p className="text-white/60 text-[10px] font-medium leading-none tracking-widest uppercase">
-                ACIESC
+                ACIESC · Itapema/SC
               </p>
               <p className="text-white font-bold text-sm leading-tight truncate">
-                Consulta IPTU — Itapema
+                Balcão do Corretor — Consulta de IPTU
               </p>
             </div>
           </div>
