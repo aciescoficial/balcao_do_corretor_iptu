@@ -1,15 +1,12 @@
 
-import React, { Suspense } from "react";
+import React from "react";
 import { Route } from "react-router-dom";
-import { LoginPage } from "../components/auth";
-import AppLoading from "../components/shared/AppLoading";
-import ResetPasswordPage from "../components/auth/login/ResetPasswordPage";
+import IPTUOtpLogin from "../components/auth/login/IPTUOtpLogin";
 
-// Fallback component with custom loading time
-const PageLoading = () => <AppLoading message="Carregando página..." />;
-
+// Login por OTP validado no Higestor — substitui o login/cadastro por senha
+// neste app standalone (iptu.aciesc.com.br). Associados entram apenas com o
+// e-mail cadastrado na ACIESC + código de acesso.
 export const AuthRoutes = [
-  <Route key="login" path="/login" element={<LoginPage />} />,
-  <Route key="cadastro" path="/cadastro" element={<LoginPage />} />,
-  <Route key="reset-password" path="/reset-password" element={<ResetPasswordPage />} />
+  <Route key="login" path="/login" element={<IPTUOtpLogin />} />,
+  <Route key="cadastro" path="/cadastro" element={<IPTUOtpLogin />} />,
 ];
