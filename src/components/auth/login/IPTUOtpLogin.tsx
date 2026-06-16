@@ -6,28 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Mail, MailCheck, ArrowLeft } from "lucide-react";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import { AlertCircle, Loader2, Mail, ShieldCheck, ArrowLeft } from "lucide-react";
 
 const FUNCTIONS_URL = "https://bcjibnbhjjgthlbeewnf.supabase.co/functions/v1";
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjamlibmJoampndGhsYmVld25mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMDg5OTUsImV4cCI6MjA5NTU4NDk5NX0.ZCfvDzPdoQuuU8QBBz3Pf8uMshslpDX5bHTWsyvZGsI";
 
-type Step = "email" | "sent";
+type Step = "email" | "code";
 
 const IPTUOtpLogin: React.FC = () => {
   const { user, loading } = useAuth();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [nome, setNome] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Já autenticado (inclusive logo após clicar no link) → vai para a consulta
+  // Já autenticado → vai direto para a consulta
   if (!loading && user) {
     return <Navigate to="/consulta-iptu" replace />;
   }
 
-  const requestLink = async (e: React.FormEvent) => {
+  const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const normalized = email.trim().toLowerCase();
@@ -56,21 +62,18 @@ const IPTUOtpLogin: React.FC = () => {
       }
       setNome(gate?.nome ?? null);
 
-      // 2. Envia o link de acesso (mágico). Redireciona de volta para a consulta.
+      // 2. Dispara o envio do código (a conta já existe → shouldCreateUser:false)
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email: normalized,
-        options: {
-          shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/consulta-iptu`,
-        },
+        options: { shouldCreateUser: false },
       });
 
       if (otpErr) {
-        setError("Não foi possível enviar o link agora. Tente novamente em instantes.");
+        setError("Não foi possível enviar o código agora. Tente novamente em instantes.");
         return;
       }
 
-      setStep("sent");
+      setStep("code");
     } catch {
       setError("Erro de conexão. Verifique sua internet e tente novamente.");
     } finally {
@@ -78,8 +81,38 @@ const IPTUOtpLogin: React.FC = () => {
     }
   };
 
+  const verifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (code.length < 6) {
+      setError("Digite os 6 dígitos do código.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code,
+        type: "email",
+      });
+
+      if (verifyErr) {
+        setError("Código inválido ou expirado. Solicite um novo.");
+        setCode("");
+        return;
+      }
+      // Sucesso: o AuthProvider detecta a sessão e o redirect no topo assume.
+    } catch {
+      setError("Erro ao validar o código. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const resetToEmail = () => {
     setStep("email");
+    setCode("");
     setError(null);
   };
 
@@ -108,14 +141,14 @@ const IPTUOtpLogin: React.FC = () => {
       <main className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border p-6 sm:p-8">
           {step === "email" ? (
-            <form onSubmit={requestLink} className="space-y-5">
+            <form onSubmit={requestCode} className="space-y-5">
               <div className="text-center space-y-1">
                 <div className="mx-auto w-12 h-12 rounded-full bg-aciesc-primary/10 flex items-center justify-center mb-2">
                   <Mail className="w-6 h-6 text-aciesc-primary" />
                 </div>
                 <h1 className="text-xl font-bold text-gray-900">Acesso do Associado</h1>
                 <p className="text-sm text-muted-foreground">
-                  Informe o e-mail cadastrado na ACIESC. Enviaremos um link de acesso.
+                  Informe o e-mail cadastrado na ACIESC. Enviaremos um código de acesso.
                 </p>
               </div>
 
@@ -147,7 +180,7 @@ const IPTUOtpLogin: React.FC = () => {
                     Validando…
                   </>
                 ) : (
-                  "Receber link de acesso"
+                  "Receber código de acesso"
                 )}
               </Button>
 
@@ -157,37 +190,67 @@ const IPTUOtpLogin: React.FC = () => {
               </p>
             </form>
           ) : (
-            <div className="space-y-5 text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                <MailCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="space-y-1">
+            <form onSubmit={verifyCode} className="space-y-5">
+              <div className="text-center space-y-1">
+                <div className="mx-auto w-12 h-12 rounded-full bg-aciesc-primary/10 flex items-center justify-center mb-2">
+                  <ShieldCheck className="w-6 h-6 text-aciesc-primary" />
+                </div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  {nome ? `Tudo certo, ${nome.split(" ")[0]}!` : "Link enviado!"}
+                  {nome ? `Olá, ${nome.split(" ")[0]}!` : "Digite o código"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Enviamos um link de acesso para
+                  Enviamos um código de 6 dígitos para
                   <br />
                   <span className="font-medium text-gray-700">{email}</span>
                 </p>
               </div>
 
-              <Alert>
-                <AlertDescription className="text-sm">
-                  Abra seu e-mail e clique em <strong>"Entrar"</strong> para acessar o
-                  sistema. Se não encontrar, verifique a caixa de <strong>spam</strong>.
-                </AlertDescription>
-              </Alert>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex justify-center">
+                <InputOTP maxLength={6} value={code} onChange={setCode} disabled={busy}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={busy || code.length < 6}>
+                {busy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Entrando…
+                  </>
+                ) : (
+                  "Entrar"
+                )}
+              </Button>
 
               <button
                 type="button"
                 onClick={resetToEmail}
+                disabled={busy}
                 className="flex items-center justify-center gap-1 w-full text-sm text-muted-foreground hover:text-gray-700"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Usar outro e-mail
               </button>
-            </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Recebeu o e-mail em outro aparelho? Sem problema — basta digitar o
+                código aqui nesta tela.
+              </p>
+            </form>
           )}
         </div>
       </main>
