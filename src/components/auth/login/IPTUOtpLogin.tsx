@@ -81,11 +81,13 @@ const IPTUOtpLogin: React.FC = () => {
     }
   };
 
+  const CODE_LENGTH = 8;
+
   const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (code.length < 6) {
-      setError("Digite os 6 dígitos do código.");
+    if (code.length < CODE_LENGTH) {
+      setError(`Digite os ${CODE_LENGTH} dígitos do código.`);
       return;
     }
 
@@ -199,7 +201,7 @@ const IPTUOtpLogin: React.FC = () => {
                   {nome ? `Olá, ${nome.split(" ")[0]}!` : "Digite o código"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Enviamos um código de 6 dígitos para
+                  Enviamos um código de 8 dígitos para
                   <br />
                   <span className="font-medium text-gray-700">{email}</span>
                 </p>
@@ -213,7 +215,7 @@ const IPTUOtpLogin: React.FC = () => {
               )}
 
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={code} onChange={setCode} disabled={busy}>
+                <InputOTP maxLength={CODE_LENGTH} value={code} onChange={setCode} disabled={busy}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
@@ -221,11 +223,13 @@ const IPTUOtpLogin: React.FC = () => {
                     <InputOTPSlot index={3} />
                     <InputOTPSlot index={4} />
                     <InputOTPSlot index={5} />
+                    <InputOTPSlot index={6} />
+                    <InputOTPSlot index={7} />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
 
-              <Button type="submit" className="w-full" disabled={busy || code.length < 6}>
+              <Button type="submit" className="w-full" disabled={busy || code.length < CODE_LENGTH}>
                 {busy ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
