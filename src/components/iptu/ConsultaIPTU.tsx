@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   searchIPTU,
   getMyIPTUQueries,
-  openIPTUEspelho,
+  fetchEspelhoHtml,
   IPTUSearchParams,
   ImovelItem,
   IPTUQueryLog,
@@ -46,6 +46,7 @@ export default function ConsultaIPTU() {
   const [results, setResults] = useState<ImovelItem[] | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [ordem, setOrdem] = useState<string>("nm_nomefantasia");
+  const [espelhoLoading, setEspelhoLoading] = useState<string | null>(null);
 
   const { register, handleSubmit, reset } = useForm<IPTUSearchParams>({ defaultValues: {} });
 
@@ -99,14 +100,36 @@ export default function ConsultaIPTU() {
 
 
   const handleOpenEspelho = async (item: ImovelItem) => {
+    const key = `${item.id_imovel_corretor}-${item.cd_imovel}`;
+    // Abre a janela JÁ no clique — evita o bloqueio de pop-up dos navegadores
+    // mobile (que só permitem window.open dentro do gesto do usuário).
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(
+        "<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" +
+        "<body style='font-family:system-ui,sans-serif;padding:24px;color:#555'>Carregando o espelho (BCI)…</body>"
+      );
+    }
+    setEspelhoLoading(key);
     try {
-      await openIPTUEspelho(item.id_imovel_corretor, item.cd_imovel_corretor);
+      const html = await fetchEspelhoHtml(item.id_imovel_corretor, item.cd_imovel_corretor);
+      const blob = new Blob([html], { type: "text/html; charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      if (win && !win.closed) {
+        win.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch (err: unknown) {
+      if (win && !win.closed) win.close();
       toast({
         title: "Erro ao abrir espelho",
         description: err instanceof Error ? err.message : "Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setEspelhoLoading(null);
     }
   };
 
@@ -372,42 +395,92 @@ export default function ConsultaIPTU() {
                     <span>Nenhum imóvel localizado com os critérios informados.</span>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-24">Reduzido</TableHead>
-                          <TableHead>Proprietário</TableHead>
-                          <TableHead>Endereço</TableHead>
-                          <TableHead className="w-36">Bairro</TableHead>
-                          <TableHead className="w-24 text-right">BCI</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {results.map((item) => (
-                          <TableRow key={`${item.id_imovel_corretor}-${item.cd_imovel}`}>
-                            <TableCell className="font-mono text-xs font-semibold text-red-600">
-                              {item.cd_imovel}
-                            </TableCell>
-                            <TableCell className="text-sm">{item.nm_proprietario}</TableCell>
-                            <TableCell className="text-sm">{item.endereco}</TableCell>
-                            <TableCell className="text-sm">{item.nm_bairro}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenEspelho(item)}
-                                title="Abrir Boletim Cadastral Imobiliário"
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                Espelho
-                              </Button>
-                            </TableCell>
+                  <>
+                    {/* ── Desktop: tabela (linha inteira clicável) ── */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-24">Reduzido</TableHead>
+                            <TableHead>Proprietário</TableHead>
+                            <TableHead>Endereço</TableHead>
+                            <TableHead className="w-36">Bairro</TableHead>
+                            <TableHead className="w-28 text-right">BCI</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {results.map((item) => {
+                            const key = `${item.id_imovel_corretor}-${item.cd_imovel}`;
+                            const loading = espelhoLoading === key;
+                            return (
+                              <TableRow
+                                key={key}
+                                onClick={() => handleOpenEspelho(item)}
+                                className="cursor-pointer hover:bg-muted/50"
+                                title="Clique para abrir o Espelho (BCI)"
+                              >
+                                <TableCell className="font-mono text-xs font-semibold text-red-600">
+                                  {item.cd_imovel}
+                                </TableCell>
+                                <TableCell className="text-sm">{item.nm_proprietario}</TableCell>
+                                <TableCell className="text-sm">{item.endereco}</TableCell>
+                                <TableCell className="text-sm">{item.nm_bairro}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={loading}
+                                    onClick={(e) => { e.stopPropagation(); handleOpenEspelho(item); }}
+                                    title="Abrir Boletim Cadastral Imobiliário"
+                                  >
+                                    {loading ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <ExternalLink className="h-3 w-3 mr-1" />
+                                    )}
+                                    Espelho
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* ── Mobile: cards clicáveis (toque em qualquer info abre o espelho) ── */}
+                    <div className="md:hidden divide-y">
+                      {results.map((item) => {
+                        const key = `${item.id_imovel_corretor}-${item.cd_imovel}`;
+                        const loading = espelhoLoading === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleOpenEspelho(item)}
+                            disabled={loading}
+                            className="w-full text-left p-4 flex flex-col gap-1 active:bg-muted/50 disabled:opacity-60"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs font-semibold text-red-600">
+                                Reduzido {item.cd_imovel}
+                              </span>
+                              <span className="inline-flex items-center text-xs font-medium text-aciesc-primary shrink-0">
+                                {loading ? (
+                                  <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Abrindo…</>
+                                ) : (
+                                  <><ExternalLink className="h-3.5 w-3.5 mr-1" /> Ver Espelho</>
+                                )}
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900">{item.nm_proprietario}</span>
+                            <span className="text-sm text-muted-foreground">{item.endereco}</span>
+                            <span className="text-xs text-muted-foreground">{item.nm_bairro}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

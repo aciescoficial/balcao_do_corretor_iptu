@@ -12,14 +12,19 @@ async function authHeaders(): Promise<Record<string, string>> {
   };
 }
 
-export async function openIPTUEspelho(id_imovel_corretor: string, cd_imovel_corretor: string): Promise<void> {
+/** Busca o HTML do espelho (BCI) sem abrir janela — para o caller controlar a abertura. */
+export async function fetchEspelhoHtml(id_imovel_corretor: string, cd_imovel_corretor: string): Promise<string> {
   const headers = await authHeaders();
   const res = await fetch(
     `${FUNCTIONS_URL}/iptu-espelho?id_imovel_corretor=${id_imovel_corretor}&cd_imovel_corretor=${cd_imovel_corretor}`,
     { headers }
   );
   if (!res.ok) throw new Error("Falha ao carregar o espelho. Tente novamente.");
-  const html = await res.text();
+  return res.text();
+}
+
+export async function openIPTUEspelho(id_imovel_corretor: string, cd_imovel_corretor: string): Promise<void> {
+  const html = await fetchEspelhoHtml(id_imovel_corretor, cd_imovel_corretor);
   const blob = new Blob([html], { type: "text/html; charset=utf-8" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank", "scrollbars=yes,width=1000,height=720");
