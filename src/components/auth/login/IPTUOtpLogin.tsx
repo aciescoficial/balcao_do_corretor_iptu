@@ -111,6 +111,8 @@ const IPTUOtpLogin: React.FC = () => {
         setCode("");
         return;
       }
+      // Registra o acesso (não bloqueia o login se falhar)
+      supabase.functions.invoke("log-access").catch(() => {});
       // Sucesso: o AuthProvider detecta a sessão e o redirect no topo assume.
     } catch {
       setError("Erro ao validar o código. Tente novamente.");
