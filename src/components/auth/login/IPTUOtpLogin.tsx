@@ -27,6 +27,8 @@ const IPTUOtpLogin: React.FC = () => {
   const [nome, setNome] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Convite de inscrição (quando o e-mail não é associado)
+  const [signup, setSignup] = useState<{ cta: string; url: string } | null>(null);
 
   // Já autenticado → vai direto para a consulta
   if (!loading && user) {
@@ -36,6 +38,7 @@ const IPTUOtpLogin: React.FC = () => {
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSignup(null);
     const normalized = email.trim().toLowerCase();
     if (!normalized) {
       setError("Informe seu e-mail.");
@@ -58,6 +61,10 @@ const IPTUOtpLogin: React.FC = () => {
 
       if (!gateRes.ok) {
         setError(gate?.error ?? "Não foi possível validar seu acesso.");
+        // Caso "não é associado": guarda o convite com link de inscrição
+        if (gate?.code === "nao_associado" && gate?.signup_url) {
+          setSignup({ cta: gate.cta ?? "Seja um associado agora mesmo", url: gate.signup_url });
+        }
         return;
       }
       setNome(gate?.nome ?? null);
@@ -157,7 +164,19 @@ const IPTUOtpLogin: React.FC = () => {
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {error}
+                    {signup && (
+                      <a
+                        href={signup.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 block w-full text-center bg-aciesc-primary text-white font-semibold rounded-lg py-2.5 px-4 hover:bg-aciesc-primary/90 transition-colors no-underline"
+                      >
+                        {signup.cta}
+                      </a>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 
