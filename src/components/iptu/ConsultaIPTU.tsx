@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Search, History, AlertCircle, Loader2, ExternalLink, Globe } from "lucide-react";
+import { Search, History, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +33,6 @@ import {
   searchIPTU,
   getMyIPTUQueries,
   openIPTUEspelho,
-  openIPTUPortal,
   IPTUSearchParams,
   ImovelItem,
   IPTUQueryLog,
@@ -98,7 +97,6 @@ export default function ConsultaIPTU() {
     searchMutation.mutate(filtered);
   };
 
-  const [portalLoading, setPortalLoading] = useState(false);
 
   const handleOpenEspelho = async (item: ImovelItem) => {
     try {
@@ -112,20 +110,6 @@ export default function ConsultaIPTU() {
     }
   };
 
-  const handleOpenPortal = async () => {
-    setPortalLoading(true);
-    try {
-      await openIPTUPortal();
-    } catch (err: unknown) {
-      toast({
-        title: "Erro ao acessar portal",
-        description: err instanceof Error ? err.message : "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setPortalLoading(false);
-    }
-  };
 
   const formatSearchParams = (params: IPTUSearchParams) => {
     const labels: Record<string, string> = {
@@ -153,23 +137,10 @@ export default function ConsultaIPTU() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
         <p className="text-sm text-muted-foreground">
           Consulte imóveis no cadastro da Prefeitura de Itapema. Exclusivo para associados ativos.
         </p>
-        <Button
-          variant="outline"
-          onClick={handleOpenPortal}
-          disabled={portalLoading}
-          className="shrink-0"
-          title="Abrir o portal completo da prefeitura já autenticado"
-        >
-          {portalLoading ? (
-            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Acessando...</>
-          ) : (
-            <><Globe className="h-4 w-4 mr-2" /> Portal Completo</>
-          )}
-        </Button>
       </div>
 
       <Tabs defaultValue="busca">
