@@ -1,4 +1,4 @@
-name: Build & Deploy → iptu.aciesc.com.br
+name: Build & Deploy → balcao.aciesc.com.br
 
 on:
   push:
